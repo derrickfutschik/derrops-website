@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkderrops_website=globalThis.webpackChunkderrops_website||[]).push([[1903],{1912:e=>{e.exports=JSON.parse('{"blogBasePath":"/derrops-website/blog","blogTitle":"Blog","authorsListPath":"/derrops-website/blog/authors"}')}}]);
