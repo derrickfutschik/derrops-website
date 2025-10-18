@@ -43,5 +43,11 @@
   },
   "engines": {
     "node": ">=20.0"
+  },
+  "author": "derrops@derrops.com",
+  "license": "(ISC OR GPL-3.0)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/derrickfutschik/derrops-website"
   }
 }
