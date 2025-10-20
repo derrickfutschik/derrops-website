@@ -38,7 +38,7 @@ The whole exhibition was one long Series Chain System Structure:
 
 I placed my bets! I told my wife I predict this thing won't work flawlessly, that something will break. Over time each of these systems may be slowly becoming less reliable. But lets say for argument sake there are 100 sub-systems, and each one fails every 200 attempts. That means:
 
-$$ (1 - \frac{1}{1000})^{200} = 0.606 \% $$
+$$ (1 - \frac{1}{1000})^{200} = 0.606 $$
 
 Which means a $$60.6\%$$ chance of success. But hey, I'm pessimistic.
 
@@ -69,4 +69,4 @@ flowchart LR
 
 ### Where to from here
 
-In the future I predict we will start to see the structure of these solutions in the tech world driven by LLMs. What is meant by _Reliability_ will be more and more hard to define, and will be disconnected from the logical flow of code, or the cause and effect in a chain reaction at NEMO.
+In the future I predict we will start to see the structure of these solutions in the tech world driven by LLMs. What is meant by _Reliability_ will be more and more hard to define, and will be disconnected from the logical flow of code, or the cause and effect in a chain reaction not too unlike that of what was at NEMO.
