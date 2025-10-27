@@ -1,0 +1,222 @@
+/**
+ * Petstore — Pets Domain (DDD-flavoured) in JHipster JDL
+ * Focus: animals housed at the pet shop/shelter (dogs, cats, etc.)
+ * You can paste this into https://www.jhipster.tech/jdl-studio/ or use `jhipster import-jdl`.
+ * Notes:
+ * - This models the core domain with rich entities and relationships.
+ * - Use separate apps/modules to enforce bounded contexts if desired (Adoptions, Clinic, Shelter Ops).
+ */
+
+/** =====================
+ *  Enums (Ubiquitous Language)
+ *  ===================== */
+enum SpeciesType { DOG, CAT, RABBIT, BIRD, REPTILE, SMALL_MAMMAL, OTHER }
+enum Sex { MALE, FEMALE, UNKNOWN }
+enum PetStatus { INTAKE, AVAILABLE, ON_HOLD, FOSTERED, ADOPTED, TRANSFERRED, DECEASED, NOT_FOR_ADOPTION }
+enum Temperament { CALM, ACTIVE, SHY, AGGRESSIVE, FRIENDLY, UNKNOWN }
+enum DietType { DRY_FOOD, WET_FOOD, RAW, MIXED, PRESCRIPTION, OTHER }
+enum IntakeSource { SURRENDER, STRAY, RESCUE_TRANSFER, BORN_IN_CARE, OTHER }
+enum ApplicationStatus { SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED, WITHDRAWN }
+enum OwnershipType { ADOPTION, FOSTER, TEMP_CARE }
+enum EnclosureType { KENNEL, CAGE, ROOM, PEN, AQUARIUM, TERRARIUM, OTHER }
+enum Vaccine { RABIES, DISTEMPER, PARVO, FELV, FVRCP, BORDETELLA, OTHER }
+enum TreatmentType { SURGERY, MEDICATION, DENTAL, SPAY_NEUTER, BEHAVIORAL, OTHER }
+
+/** =====================
+ *  Core Catalog & Identity
+ *  ===================== */
+entity Breed {
+  name String required minlength(2) maxlength(80)
+  species SpeciesType required
+  sizeLabel String maxlength(32)
+  notes String maxlength(5000)
+}
+/** Ideally unique (species,name) — JDL lacks composite unique; enforce via DB migration. */
+
+entity Person { // adopter/owner/foster carer or surrendering person
+  firstName String required minlength(1) maxlength(60)
+  lastName String required minlength(1) maxlength(60)
+  phone String maxlength(32)
+  email String pattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/) maxlength(120)
+  street String maxlength(120)
+  city String maxlength(80)
+  state String maxlength(80)
+  postalCode String maxlength(16)
+  country String maxlength(80)
+  verified Boolean
+}
+
+/** =====================
+ *  Shelter Ops — Housing & Intake
+ *  ===================== */
+entity Enclosure {
+  code String required unique minlength(1) maxlength(30)
+  type EnclosureType required
+  capacity Integer required min(1) max(50)
+  location String maxlength(120)
+  notes String maxlength(5000)
+}
+
+entity HousingAssignment { // history of where a pet stayed
+  startDate LocalDate required
+  endDate LocalDate
+}
+
+entity IntakeRecord {
+  intakeDate LocalDate required
+  source IntakeSource required
+  foundLocation String maxlength(160)
+  surrenderedReason String maxlength(200)
+  initialHealthNotes String maxlength(5000)
+}
+
+/** =====================
+ *  Core Aggregate — Pet
+ *  ===================== */
+entity Pet {
+  name String required minlength(1) maxlength(60)
+  species SpeciesType required
+  sex Sex required
+  dateOfBirth LocalDate
+  estimatedAgeMonths Integer min(0) max(3600)
+  color String maxlength(60)
+  microchipNumber String unique pattern(/^[A-Za-z0-9\-]{5,25}$/)
+  intakeDate LocalDate required
+  status PetStatus required
+  neutered Boolean required
+  weightKg BigDecimal min(0.0) max(200.0)
+  temperament Temperament
+  description String maxlength(5000)
+}
+
+entity PetStatusChange {
+  fromStatus PetStatus required
+  toStatus PetStatus required
+  changedAt ZonedDateTime required
+  reason String maxlength(200)
+}
+
+/** =====================
+ *  Health & Care
+ *  ===================== */
+entity VaccinationRecord {
+  vaccine Vaccine required
+  dateGiven LocalDate required
+  dueDate LocalDate
+  administeredBy String maxlength(80)
+  notes String maxlength(5000)
+}
+
+entity MedicalCondition {
+  name String required minlength(2) maxlength(80)
+  description String maxlength(5000)
+  chronic Boolean
+  diagnosedDate LocalDate
+}
+
+entity VetVisit {
+  visitDate ZonedDateTime required
+  clinicName String maxlength(120)
+  vetName String maxlength(80)
+  reason String maxlength(160)
+  report String maxlength(5000)
+}
+
+entity Treatment {
+  type TreatmentType required
+  name String required minlength(2) maxlength(80)
+  startDate LocalDate
+  endDate LocalDate
+  dosage String maxlength(80)
+  instructions String maxlength(5000)
+}
+
+entity FeedingPlan {
+  diet DietType required
+  foodBrand String maxlength(80)
+  amountGrams Integer min(0) max(5000)
+  frequencyPerDay Integer min(1) max(6)
+  specialInstructions String maxlength(5000)
+}
+
+entity Photo {
+  imageData Blob required
+  caption String maxlength(140)
+  takenAt ZonedDateTime
+}
+
+/** =====================
+ *  Adoption & Ownership Lifecycle
+ *  ===================== */
+entity AdoptionApplication {
+  submittedDate ZonedDateTime required
+  status ApplicationStatus required
+  notes String maxlength(5000)
+}
+
+entity Ownership { // canonical record of who has custody
+  type OwnershipType required
+  startDate LocalDate required
+  endDate LocalDate
+}
+
+/** =====================
+ *  Relationships (navigability hints in braces)
+ *  ===================== */
+relationship ManyToOne {
+  Pet{breed(name)} to Breed
+  Pet{enclosure(code)} to Enclosure
+  VaccinationRecord{pet(name)} to Pet
+  MedicalCondition{pet(name)} to Pet
+  VetVisit{pet(name)} to Pet
+  Treatment{pet(name)} to Pet
+  Treatment{condition(name)} to MedicalCondition
+  HousingAssignment{pet(name)} to Pet
+  HousingAssignment{enclosure(code)} to Enclosure
+  FeedingPlan{pet(name)} to Pet
+  Photo{pet(name)} to Pet
+  PetStatusChange{pet(name)} to Pet
+  AdoptionApplication{applicant(lastName)} to Person
+  AdoptionApplication{pet(name)} to Pet
+  Ownership{owner(lastName)} to Person
+  Ownership{pet(name)} to Pet
+}
+
+relationship OneToOne {
+  IntakeRecord{pet(name) required} to Pet{intake}
+}
+
+/** =====================
+ *  Entity-level Options
+ *  ===================== */
+// DTOs and services to keep controllers thin (DDD-style application layer)
+dto * with mapstruct
+service all with serviceClass
+filter *
+
+// Pagination where lists can get big
+paginate Pet, Breed, Person, AdoptionApplication, VetVisit, MedicalCondition, Treatment with pagination
+paginate VaccinationRecord, Ownership, HousingAssignment, Photo, PetStatusChange with infinite-scroll
+
+// Auditing (if using JHipster auditing add-ons; otherwise ignore)
+// entity * with
+//   fields createdBy String, createdDate ZonedDateTime, lastModifiedBy String, lastModifiedDate ZonedDateTime
+
+/** =====================
+ *  Constraints & Indexing (documentation hints)
+ *  ===================== */
+// NOTE: Enforce (Breed.species, Breed.name) unique via migration.
+// Suggested indexes (apply in liquibase/flyway):
+// - Pet.microchipNumber unique index
+// - Pet.status, Pet.species ordinary indexes
+// - VaccinationRecord.(pet_id, due_date)
+// - Ownership.(pet_id, end_date)
+// - HousingAssignment.(pet_id, start_date)
+
+/** =====================
+ *  Bounded Context Hints (optional separate apps)
+ *  ===================== */
+// context ShelterOps: Pet, Breed, IntakeRecord, Enclosure, HousingAssignment, Photo, PetStatusChange
+// context Health: VaccinationRecord, MedicalCondition, VetVisit, Treatment, FeedingPlan
+// context Adoptions: Person, AdoptionApplication, Ownership
+// Use separate JHipster apps/modules and share IDs via events/API.

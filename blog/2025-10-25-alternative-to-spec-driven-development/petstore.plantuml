@@ -1,0 +1,218 @@
+@startuml
+	!pragma layout smetana
+	!pragma syntax class
+	enum SpeciesType {
+		DOG, 
+		CAT, 
+		RABBIT, 
+		BIRD, 
+		REPTILE, 
+		SMALL_MAMMAL, 
+		OTHER 
+	}
+	enum Sex {
+		MALE, 
+		FEMALE, 
+		UNKNOWN 
+	}
+	enum PetStatus {
+		INTAKE, 
+		AVAILABLE, 
+		ON_HOLD, 
+		FOSTERED, 
+		ADOPTED, 
+		TRANSFERRED, 
+		DECEASED, 
+		NOT_FOR_ADOPTION 
+	}
+	enum Temperament {
+		CALM, 
+		ACTIVE, 
+		SHY, 
+		AGGRESSIVE, 
+		FRIENDLY, 
+		UNKNOWN 
+	}
+	enum DietType {
+		DRY_FOOD, 
+		WET_FOOD, 
+		RAW, 
+		MIXED, 
+		PRESCRIPTION, 
+		OTHER 
+	}
+	enum IntakeSource {
+		SURRENDER, 
+		STRAY, 
+		RESCUE_TRANSFER, 
+		BORN_IN_CARE, 
+		OTHER 
+	}
+	enum ApplicationStatus {
+		SUBMITTED, 
+		UNDER_REVIEW, 
+		APPROVED, 
+		REJECTED, 
+		WITHDRAWN 
+	}
+	enum OwnershipType {
+		ADOPTION, 
+		FOSTER, 
+		TEMP_CARE 
+	}
+	enum EnclosureType {
+		KENNEL, 
+		CAGE, 
+		ROOM, 
+		PEN, 
+		AQUARIUM, 
+		TERRARIUM, 
+		OTHER 
+	}
+	enum Vaccine {
+		RABIES, 
+		DISTEMPER, 
+		PARVO, 
+		FELV, 
+		FVRCP, 
+		BORDETELLA, 
+		OTHER 
+	}
+	enum TreatmentType {
+		SURGERY, 
+		MEDICATION, 
+		DENTAL, 
+		SPAY_NEUTER, 
+		BEHAVIORAL, 
+		OTHER 
+	}
+	class Breed <<Option {Service,Filter,Dto,Paginate}>> {
+		String name
+		SpeciesType species
+		String sizeLabel
+		String notes
+	}
+	Breed ..> SpeciesType
+	class Person <<Option {Service,Filter,Dto,Paginate}>> {
+	}
+	class Enclosure <<Option {Service,Filter,Dto}>> {
+		String code
+		EnclosureType type
+		Integer capacity
+		String location
+		String notes
+	}
+	Enclosure ..> EnclosureType
+	class HousingAssignment <<Option {Service,Filter,Dto,Paginate}>> {
+		LocalDate startDate
+		LocalDate endDate
+	}
+	class IntakeRecord <<Option {Service,Filter,Dto}>> {
+		LocalDate intakeDate
+		IntakeSource source
+		String foundLocation
+		String surrenderedReason
+		String initialHealthNotes
+	}
+	IntakeRecord ..> IntakeSource
+	class Pet <<Option {Service,Filter,Dto,Paginate}>> {
+		String name
+		SpeciesType species
+		Sex sex
+		LocalDate dateOfBirth
+		Integer estimatedAgeMonths
+		String color
+		String microchipNumber
+		LocalDate intakeDate
+		PetStatus status
+		Boolean neutered
+		BigDecimal weightKg
+		Temperament temperament
+		String description
+	}
+	Pet ..> SpeciesType
+	Pet ..> Sex
+	Pet ..> PetStatus
+	Pet ..> Temperament
+	class PetStatusChange <<Option {Service,Filter,Dto,Paginate}>> {
+		PetStatus fromStatus
+		PetStatus toStatus
+		ZonedDateTime changedAt
+		String reason
+	}
+	PetStatusChange ..> PetStatus
+	PetStatusChange ..> PetStatus
+	class VaccinationRecord <<Option {Service,Filter,Dto,Paginate}>> {
+		Vaccine vaccine
+		LocalDate dateGiven
+		LocalDate dueDate
+		String administeredBy
+		String notes
+	}
+	VaccinationRecord ..> Vaccine
+	class MedicalCondition <<Option {Service,Filter,Dto,Paginate}>> {
+		String name
+		String description
+		Boolean chronic
+		LocalDate diagnosedDate
+	}
+	class VetVisit <<Option {Service,Filter,Dto,Paginate}>> {
+		ZonedDateTime visitDate
+		String clinicName
+		String vetName
+		String reason
+		String report
+	}
+	class Treatment <<Option {Service,Filter,Dto,Paginate}>> {
+		TreatmentType type
+		String name
+		LocalDate startDate
+		LocalDate endDate
+		String dosage
+		String instructions
+	}
+	Treatment ..> TreatmentType
+	class FeedingPlan <<Option {Service,Filter,Dto}>> {
+		DietType diet
+		String foodBrand
+		Integer amountGrams
+		Integer frequencyPerDay
+		String specialInstructions
+	}
+	FeedingPlan ..> DietType
+	class Photo <<Option {Service,Filter,Dto,Paginate}>> {
+		Blob imageData
+		String caption
+		ZonedDateTime takenAt
+	}
+	class AdoptionApplication <<Option {Service,Filter,Dto,Paginate}>> {
+		ZonedDateTime submittedDate
+		ApplicationStatus status
+		String notes
+	}
+	AdoptionApplication ..> ApplicationStatus
+	class Ownership <<Option {Service,Filter,Dto,Paginate}>> {
+		OwnershipType type
+		LocalDate startDate
+		LocalDate endDate
+	}
+	Ownership ..> OwnershipType
+	Pet  "breed(name) 0..* " o-- "0..1 "  Breed
+	Pet  "enclosure(code) 0..* " o-- "0..1 "  Enclosure
+	VaccinationRecord  "pet(name) 0..* " o-- "0..1 "  Pet
+	MedicalCondition  "pet(name) 0..* " o-- "0..1 "  Pet
+	VetVisit  "pet(name) 0..* " o-- "0..1 "  Pet
+	Treatment  "pet(name) 0..* " o-- "0..1 "  Pet
+	Treatment  "condition(name) 0..* " o-- "0..1 "  MedicalCondition
+	HousingAssignment  "pet(name) 0..* " o-- "0..1 "  Pet
+	HousingAssignment  "enclosure(code) 0..* " o-- "0..1 "  Enclosure
+	FeedingPlan  "pet(name) 0..* " o-- "0..1 "  Pet
+	Photo  "pet(name) 0..* " o-- "0..1 "  Pet
+	PetStatusChange  "pet(name) 0..* " o-- "0..1 "  Pet
+	AdoptionApplication  "applicant(lastName) 0..* " o-- "0..1 "  Person
+	AdoptionApplication  "pet(name) 0..* " o-- "0..1 "  Pet
+	Ownership  "owner(lastName) 0..* " o-- "0..1 "  Person
+	Ownership  "pet(name) 0..* " o-- "0..1 "  Pet
+	IntakeRecord  "pet(name) 0..1 " -- "intake 0..1 "  Pet
+@enduml
+

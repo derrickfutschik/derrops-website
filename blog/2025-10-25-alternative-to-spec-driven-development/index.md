@@ -2,7 +2,7 @@
 slug: alternative-to-spec-driven-development
 title: Alternative to Spec Driven Development
 authors: [derrops]
-tags: [ai, spec-driven-development, domain-driven-design]
+tags: [ai, spec-driven-development, domain-driven-design, vibe-coding]
 draft: true
 ---
 
@@ -55,37 +55,9 @@ Awesome—here’s a Sculptor-style domain model focused purely on the animals a
 >
 > Sculptor itself is the OSS DSL/codegen tool this targets.
 
-```java
-Application Petstore {
-  basePackage = com.example.petstore
-  doc = "Domain for animals physically housed in the shop: intake, housing, care, and adoption readiness."
+[petstore.btdesign](./petstore.btdesign)
 
-  BoundedContext PetHousing {
-    doc = "Everything about animals in-house (dogs & cats), their kennels, care, and adoption lifecycle."
-
-    // === Shared definitions ===
-    Enum Species { DOG, CAT }
-    Enum Sex { MALE, FEMALE, UNKNOWN }
-    // ...
-
-    ValueObject Microchip {
-      String number
-      doc = "Global unique microchip number; may be absent for some intakes."
-      constraint unique(number)
-    }
-
-    ValueObject Name {
-      String callName
-      String pedigreeName optional
-    }
-
-    ValueObject WeightKg {
-      BigDecimal value
-      constraint range(value, 0.1, 200.0)
-    }
-    // ....
-
-}
+```java file=./petstore.btdesign#L1-L35
 
 ```
 
@@ -100,50 +72,61 @@ perform Domain Driven Design using JTL https://www.jhipster.tech/jdl-studio/ for
 :::
 
 :::info Answer
+[petstore.jdl](./petstore.jdl)
 
-```java
+```java file=./petstore.jdl#L1-L35
 
-/**
-* Petstore — Pets Domain (DDD-flavoured) in JHipster JDL
-* Focus: animals housed at the pet shop/shelter (dogs, cats, etc.)
-* You can paste this into https://www.jhipster.tech/jdl-studio/ or use `jhipster import-jdl`.
-* Notes:
-* - This models the core domain with rich entities and relationships.
-* - Use separate apps/modules to enforce bounded contexts if desired (Adoptions, Clinic, Shelter Ops).
-*/
-
-
-/** =====================
-* Enums (Ubiquitous Language)
-* ===================== */
-enum SpeciesType { DOG, CAT, RABBIT, BIRD, REPTILE, SMALL_MAMMAL, OTHER }
-enum Sex { MALE, FEMALE, UNKNOWN }
-enum PetStatus { INTAKE, AVAILABLE, ON_HOLD, FOSTERED, ADOPTED, TRANSFERRED, DECEASED, NOT_FOR_ADOPTION }
-//...
-
-/** =====================
-* Core Catalog & Identity
-* ===================== */
-entity Breed {
-    name String required minlength(2) maxlength(80),
-    species SpeciesType required,
-    sizeLabel String maxlength(32),
-    notes TextBlob
-}
-/** Ideally unique (species,name) — JDL lacks composite unique; enforce via DB migration. */
-
-// ...
 ```
 
 :::
 
-Syntactially, these were both similiar, however JHipters JDL had a nice web editor and generated diagrams:
+Syntactially, these were both similar, however JHipster's JDL had a nice web editor and generated diagrams:
 
-![petstore-jdl.png](./petstore-jdl.png)
+## Which one I selected
 
-to develop software, at the moment SPEC driven development seems to be the first iteration of this.
+Event though both of these were promising candidates, `JDL` had the `JDL Studio`:
+![jdl-studio](./jdl-studio.png)
+Which export the `petstore.jdl` file as an image: [petstore-jdl.png](./petstore-jdl.png). It also supports generating projects with different programming languages:
 
-Old relics
+But if you prefer some good old fashion eclipse feeling **UML**, that is possible using a few node tools:
+
+1. To Generate a plantuml diagram:[petstore.plantuml](./petstore.plantuml):
+
+```bash
+npm install -g jdlbridge
+jdlbridge -u -f petstore.jdl
+```
+
+2. Then this can be saved into an image:
+
+```bash
+npm install -g plantuml-cli
+plantuml-cli -tpng petstore.plantuml
+```
+
+![petstore.png](./petstore.png)
+
+Gives me that nice odl eclipse feel to it. Funnily enough the sculptor framework is supported in eclipse. I'm cautious to even mention `eclipse` these days, but the results were too funny: 🤣
+
+![eclipse.png](./eclipse.png)
+
+But still it was funny to know that actually both: JDL & Sculptor are XTend DSLs. So even though JHipster may look more modern, they are very similar, but JDL did have the nicer WebUI, and also has supported tooling, and supports my favorite: `NestJS`:
+
+| **Language**                | **Framework / Stack**    | **Description**                                                                                                                 |
+| --------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Java**                    | **Spring Boot**          | The default and most mature backend supported by JHipster. Includes Spring Data JPA, Spring Security, Liquibase, and REST APIs. |
+| **Kotlin**                  | **Spring Boot (Kotlin)** | Uses the JHipster Kotlin blueprint to generate Kotlin-based Spring Boot applications.                                           |
+| **TypeScript / JavaScript** | **NestJS (Node.js)**     | Supported via the JHipster NodeJS blueprint. Generates a NestJS + TypeORM + Express-based REST API.                             |
+| **Java**                    | **Micronaut**            | Lightweight alternative to Spring Boot. Supported by the JHipster Micronaut blueprint. Faster startup and lower memory use.     |
+| **Java**                    | **Quarkus**              | Optimized for GraalVM and native image builds. Supported by the JHipster Quarkus blueprint.                                     |
+| **Go (Golang)**             | **Gin + Gorm**           | Experimental community blueprint for Go microservices using Gin (web) and Gorm (ORM).                                           |
+| **C#**                      | **ASP.NET Core**         | Community-supported blueprint that generates an ASP.NET Core backend compatible with JHipster microservices architecture.       |
+| **Python**                  | **Flask / FastAPI**      | Experimental blueprint generating a Python-based backend, typically using Flask or FastAPI frameworks.                          |
+
+```bash
+npm install -g generator-jhipster generator-jhipster-nodejs
+jhipster import-jdl app.jdl --blueprints nodejs
+```
 
 ## Sculptor Generator
 
