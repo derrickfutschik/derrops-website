@@ -128,15 +128,17 @@ npm install -g generator-jhipster generator-jhipster-nodejs
 jhipster import-jdl app.jdl --blueprints nodejs
 ```
 
-## Sculptor Generator
+:::tip
+Even if one of your frameworks or languages wasn't supported, you could simply generate for example a Nest app, and then use AI to convert the project to the type you want.
+:::
 
-btdesign
+## Workflow
 
-- Old Java Enterprise cringy sort of tool, tooling not really there, only Java
+1. Generate the [nestjs-app.zip](./nestjs-app.zip)
 
-- Google Groups
-- Eclipse
-- Java Served HTML
+```bash
+jhipster import-jdl ./petstore.jdl --blueprints nodejs --skip-checks
+```
 
 The same time LLMs have driven us back to text interfaces, now we are writing text all the time. I don’t think this will be the case forever though, we will eventually see UI for this purpose.
 
