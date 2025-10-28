@@ -6,7 +6,19 @@ tags: [ai, spec-driven-development, domain-driven-design, vibe-coding]
 draft: true
 ---
 
-## What is is
+1. Design Domain
+2. Generate Project
+
+---
+
+0. Tell Claude Code / AI Tool about structure of the project
+1. Design Feature
+2. Update .jdl File
+3. Create new Feature
+
+## What is Spec Driven Development
+
+The next step in Vibe coding?
 
 Right now there is a massive race to find higher level abstractions/languages to reliability communicate intent with LLMs. Amazon recently came out with [kiro] (https://kiro.dev/), an IDE built around this concept of Spec Driven Development. Developers can then communicate what they want to achieve, and how a feature is supposed to behave, but not have to actually do the coding.
 
@@ -20,7 +32,9 @@ When we look at all the aspects of software development, one thing missing in al
 
 ## What is missing
 
-One key issue I feel with SDD, is there is no emphasis on the Domain. Before
+> > > **_How can concise and condense overview of the application be passed to the model in a form which makes sense?_**
+
+Context engineering is so important to LLMs, yet we are not parsing
 
 ## How can this gap be included.
 

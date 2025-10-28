@@ -11,17 +11,16 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Devops Tips and Tricks',
+    title: 'Tips and Tricks',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Not just complex articles, but also easy simple tips and tricks to make your life easier.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Tutorials',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
@@ -31,7 +30,7 @@ const FeatureList: FeatureItem[] = [
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Thought Leadership & Strategy',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
