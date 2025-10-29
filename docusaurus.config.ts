@@ -14,6 +14,13 @@ const config: Config = {
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownImages: (brokenImagePath, sourceFilePath) => {
+        console.warn(
+          `⚠️  Broken image: ${brokenImagePath.pathname} in ${sourceFilePath}`
+        );
+      },
+    },
   },
 
   themes: ['@docusaurus/theme-mermaid'],
