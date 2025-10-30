@@ -3,6 +3,7 @@ slug: opensearch-ts
 title: Opensearch TS
 authors: [derrops]
 tags: [opensearch, typescript]
+draft: true
 ---
 
 # Opensearch-TS
