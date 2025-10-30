@@ -3,13 +3,23 @@ slug: good-optimization
 title: Good Optimization is Never Premature
 date: 2025-10-30
 authors: [derrops]
-tags: [optimization]
+tags:
+  [
+    optimization,
+    performance,
+    mathematics,
+    physics,
+    simulation,
+    software-engineering,
+    cnc,
+    game-engines,
+  ]
 ---
 
 > “Premature optimization is the root of all evil.”
 > — <cite>Donald Knuth</cite>
 
-But as somebody who studied optimization and mathematics in university, optimization is literally one of my favorite topics.
+But as somebody who studied optimization and mathematics in university, optimization is literally one of my favourite topics.
 
 My first job after graduating was working at a company which designed and manufactured CNC tool grinding machines as well as developing the software. I worked in the Application Software Engineering team. One component of the software was called the **Contact Solver**. This component was responsible for calculating when the grinding wheel would make contact with the geometry of the tool.
 
@@ -17,7 +27,7 @@ My first job after graduating was working at a company which designed and manufa
 
 The actual real mathematical calculation of this was extremely complicated, as the surface of drill bits, mills etc can be highly complex. The mathematics is very complex, even with my background in Applied Mathematics at University I couldn't do a lot of the true 3D Calculations 😱
 
-| **Contact Type**                  | **Formula (LaTeX)**                                                                                                                                 |
+| **Contact Type**                  | **Formula**                                                                                                                                         |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Sphere–Sphere**                 | $$\text{contact} \iff \|c_2 - c_1\| \le r_1 + r_2$$                                                                                                 |
 | **Sphere–AABB**                   | $$p = \operatorname{clamp}(c, m, M), \quad \text{contact} \iff \|p - c\| \le r$$                                                                    |
@@ -47,7 +57,7 @@ But I did take somewhat of an interest in Game engines, and had played around wi
 
 And I was interested in the **Physics** part, having a background in mathematics at university. Whilst the mathematical problem of asking:
 
-> Is there is contact between two objects? Or When do they intersect
+> Is there is contact between two objects? Or When do they intersect?
 
 Is a very **complex** one. An easier question can be to ask:
 
@@ -100,7 +110,7 @@ My final result had the tool divided up into many different cylindrical sections
 
 ## Summary
 
-The results were fantastic! In our sandbox application, the wheel smoothly moved through the simulation. There was virtually no latency, even for very long tools.
+The results were fantastic! In our sandbox application, the wheel smoothly moved through the simulation. There was virtually no latency, even for very long tools. This taught me a valuable lesson.
 
-1. This taught me a valuable lesson, that simple optimizations in highly complex calculations can yield extreme performance gains
+1. That simple optimizations in highly complex calculations can yield extreme performance gains
 2. Interest in random technology can give you great ideas
