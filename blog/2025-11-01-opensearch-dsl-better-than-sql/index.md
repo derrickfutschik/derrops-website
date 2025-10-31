@@ -1,11 +1,46 @@
 ---
 slug: opensearch-dsl-better-than-sql
-title: Opensearch and Elasticsearch DSL is Better than SQL, you just don't know it yet
+# title: Opensearch and Elasticsearch DSL is Better than SQL, you just don't know it yet
+title: Buckethead or Tablehead?
 date: 2025-11-01
 authors: [derrops]
 tags: [sql, opensearch, typescript]
 draft: true
 ---
+
+![bucketsvstable.png](./bucketsvstable.png)
+
+I've realized that when people are confronted with massive amounts of data, they fall into two categories:
+**Bucketheads** and **Tableheads**.
+
+### Tableheads
+Tableheads are the majority, they are everywhere. They think in terms of:
+- Tables
+- Relationships
+- Structured
+
+They are proponents of **Normalization**, and live in the comfy safety of the Normal Forms: (1nf, 2nf, 3nf) 
+
+
+### Bucketheads
+
+When confronted w
+
+
+My brain does not think in SQL. I've always struggled with defining the SQL . 
+
+I'm a big proponent of the [Opensearch Query DSL](https://docs.opensearch.org/latest/query-dsl/). 
+
+
+
+## Buckets, so much easier to think and model
+
+
+
+
+
+## Closer to the Programming Language
+
 
 SQL! SQL is way better than Opensearch (OS) DSL you say? But not in all scenarios. Lets say you are writing code in typescript! My favourite language, mainly because it is the king of defining types:
 
