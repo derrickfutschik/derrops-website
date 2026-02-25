@@ -1,5 +1,5 @@
 ---
-slug: new-environments
+slug: derrops-conventions
 # title: Opensearch and Elasticsearch DSL is Better than SQL, you just don't know it yet
 title: Derrops Conventions
 date: 2026-02-24
@@ -15,6 +15,9 @@ draft: true
 I've been meaning to make this guide, having worked at a SAAS from the very get-go, I've now got to live with some good and some bad decisions.
 
 ## Naming Resources
+
+Segregate environments by account so that naming collisions are avoided, whilst reducing complexity by not adding unnecessary naming conventions to resources.
+ By having the same name for a resource in different environments, it makes it easy to group resources across environments together. This is useful in filtering duplicates for security findings, as having different names for the same resources adds complexity to the queries needed 
 
 :::tip
 Strongly Recommend Naming Resources should be Agnostic of Environment
@@ -44,10 +47,12 @@ Segregation needs to be done in a strategic way. Resources segregated differentl
 
 ```mermaid
 graph LR
+    R[Region]
     E[Environment]
     O[Organization]
     D[Domain]
     S[Service]
+    R --> E
     E --> O
     O --> D
     D --> S
@@ -74,11 +79,16 @@ If your configuration is **NOT** stored in the same namespace as the resource, y
 
 | Segment | Example            | Description                                                                                                                             |
 |---------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| `{region}`     | ap-southeast-2               | *(Optional if platform will be multi-region)* The region of the deployment. This may be required if you are not going to segregate your regions by accounts, then there will be conflicts as some services are global (AWS IAM) or share the same namespace (such as S3 Buckets which must be unique across all regions). Deciding to have different accounts for different regions mitigates this issue, but this decision can sometimes be taking other factors into account than this guide. Note this region is the Availability Zone, and not the country itself. | 
 | `{env}`   | dev                | *(Only if Required)* The deployment environment. Only required when the config key lives in a different namespace than the resource accessing it. If your config is stored in the same account or namespace as the resource, this segment is redundant and should be omitted. |
 | `{org}`     | acme               | The top-level tenant or business unit. Provides hard namespace isolation. Chosen to be stable and long-lived—changes are rare and treated as a migration event. |
 | `{domain}`  | payments           | A bounded business or technical capability that can be owned and reasoned about independently. More stable than a team name, more meaningful than a platform label. |
 | `{service}` | checkout-api       | The concrete, deployable unit within a domain. Specific enough to be unambiguous, broad enough to own multiple configuration values beneath it. |
 | `{key}`     | stripe-webhook-secret | The actual parameter being addressed. Everything above it is context and namespace; this is the value you are looking up.                     |
+
+:::note
+We will assume going forward there is only 1 region, so there is no need for segregation by region, but if there wasn't, region would need to be included in the prefix
+:::
 
 **Full example:**
  1. `/{org}/{domain}/{service}/{key}` => `/acme/payments/checkout-api/stripe-webhook-secret`
@@ -105,15 +115,27 @@ Each segment is chosen to be more volatile than the one to its left:
 
 | Segment | Stability |
 |---------|-----------|
-| `{org}`  | changes almost never |
-| `{domain}` | changes rarely, capabilities outlive teams |
-| `{service}` | changes occasionally, deployable units get renamed or split |
+| `{region}`  | for all intensive purposes will never change |
+| `{org}`  | changes almost never, unless re-org |
+| `{domain}` | changes rarely, capabilities outlive teams, only if domain is modelled differently and refactored |
+| `{service}` | changes occasionally, deployable units get renamed, split or merged |
 | `{key}` | changes most frequently |
+
+
+### Global Services or Namespaces
+
+Resource Type | region | org | domain | service | key |
+|-------------|--------|-----|--------|---------|-----|
+| AWS S3 | ✅ | ✅ | ✅ | ✅ | |
+| AWS IAM | ✅ | ✅ | ✅ | ✅ | |
+| SSM Parameters | | ✅ | ✅ | ✅ | ✅ |
 
 
 ## Each Component
 
-### Org - Organizational Segregation
+### Region
+
+### Org
 
 ### Domain
 
@@ -122,226 +144,9 @@ Each segment is chosen to be more volatile than the one to its left:
 - Naturally guides correct usage — engineers intuitively know whether something belongs to payments or identity
 - Aligns with how most mature orgs already think about their architecture, even if they don't use the word
 
-
-
-to reduce operational complexity.
-
-
-
-
-
 ### Service
 
-## Environment Segregation
+## Key
 
- - Segregate environments by account so that naming collisions are avoided, whilst reducing complexity by not adding unnecessary naming conventions to resources.
- - By having the same name for a resource in different environments, it makes it easy to group resources across environments together. This is useful in filtering duplicates for security findings, as having different names for the same resources adds complexity to the queries needed 
 
 
-
-# Configuration & Secrets Ownership Guide
-
-This document defines **where configuration and secrets live**, **why**,
-and **the rules governing each layer**.\
-The goal is to make configuration **explicit, auditable, secure, and
-predictable**.
-
-------------------------------------------------------------------------
-
-## Where does configuration live?
-
-Configuration is split into **layers**, each with a **clear
-responsibility**.\
-No single system should answer every question.
-
-
-# Configuration Authority Hierarchy
-
-Each configuration value has exactly one authority.
-| Authority                        | System / Layer                     | Responsibility             | Example                        |
-|----------------------------------|------------------------------------|----------------------------|---------------------------------|
-| **Local Authority**              | Env File (.env file)               | Local dev enablement       | Allowed regions, schemas        |
-| **Policy Authority**              | Git (repository)                  | What is allowed            | Allowed regions, schemas        |
-| **Runtime Authority**             | SSM Parameter Store               | Defines what is active     | Feature flags, live endpoints   |
-| **Secret Authority**              | Secrets Manager                   | Defines secret values      | API keys, passwords             |
-| **Sensitive Config Authority**    | SecureString                      | Manages sensitive config   | Encrypted DB URI                |
-| **Validation Authority**          | Code schema validation            | Ensures correctness        | Zod/Valibot/Yup schema checks   |
-| **Consumption Authority**         | Application code                  | Consumes config            | Reads config object in code     |
-
-
-
-------------------------------------------------------------------------
-
-## .env files (Local Development Layer)
-
-`.env` files are used only for local development.
-
-## Purpose
-
--   Provide secrets and configuration for local execution
--   Allow developers to run services without cloud dependency
-
-## Rules
-
--   Must not be committed to Git
--   Must be gitignored
--   Must only exist locally
--   Must not be used in production
--   Must follow the same schema as production configuration
-
-------------------------------------------------------------------------
-
-# Git (Policy Layer)
-
-**Git is the source of truth for intent and policy.**
-
-It answers *why* something exists, not *what it currently is*.
-
-## Git defines
-
--   Allowed values
--   Schemas
--   Constraints
--   Policy-level defaults
--   Environment shapes
-
-## Git must not contain
-
--   Secrets
--   Runtime values
--   Environment-specific endpoints
--   Credentials
-
-## Rules
-
--   All changes require review
--   All changes must be auditable
--   Git defines policy, not runtime state
-
-------------------------------------------------------------------------
-
-# SSM Parameter Store (Runtime Configuration Layer)
-
-**SSM represents runtime configuration state.**
-
-## Rules
-
--   Values must conform to Git policy
--   Values must be environment-scoped
--   Changes must not require rebuilds
--   Parameters must be hierarchical and namespaced
--   Secrets Manager should be preferred over SSM for secrets
-
-## Naming Convention
-
-    `/{org}/{system}/{env}/{service}/{key}`
-
-Example:
-
-    /fortiro/protect/prod/api/feature/scan-enabled
-    /fortiro/protect/prod/api/db/host
-
-------------------------------------------------------------------------
-
-# Secrets Manager (Primary Secrets Layer)
-
-**Secrets Manager is the preferred system for managing secrets.**
-
-## Rules
-
--   Must be injected at runtime
--   Must never be hardcoded
--   Must never be committed to Git
--   Must be readable only by authorised services
--   Rotation should be enabled when possible
-
-------------------------------------------------------------------------
-
-# Tags (Metadata Layer)
-
-Tags define ownership and metadata.
-
-## Rules
-
--   All AWS resources must be tagged
--   Tags must never control application behavior
--   Tags must not contain secrets
-
-------------------------------------------------------------------------
-
-# Codebase (Consumer Layer)
-
-The codebase consumes configuration.
-
-## Rules
-
--   Must not define runtime values
--   Must not define secrets
--   Must validate schema
--   Must fail fast on missing configuration
-
-------------------------------------------------------------------------
-
-# Fail Fast Requirement
-
-Application startup must fail if:
-
--   Required configuration is missing
--   Secrets cannot be retrieved
--   Configuration violates schema
-
-------------------------------------------------------------------------
-
-# Configuration Injection Model
-
-Configuration must be injected at runtime via:
-
--   Environment variables
--   SSM Parameter Store
--   Secrets Manager
-
-Configuration must never be compiled into the application artifact.
-
-------------------------------------------------------------------------
-
-# Runtime Defaults Policy
-
-Defaults must exist only in configuration, not application logic.
-
-Allowed:
-
-    size: params.size ?? config['app.pagination.default.size']
-
-Forbidden:
-
-    size: params.size ?? 20
-
-------------------------------------------------------------------------
-
-# Environment Precedence
-
-Highest precedence first:
-
-1.  Explicit test configuration injection
-2.  System environment variables
-3.  Local `.env`
-4.  SSM Parameter Store
-5.  Secrets Manager
-6.  Git policy
-7.  Code schema validation
-
-------------------------------------------------------------------------
-
-# Result
-
-This model ensures:
-
--   Secure secret handling
--   Explicit runtime configuration
--   Fail-fast startup guarantees
--   Predictable deployments
-
-
-# Glossary
-
- - Deployment Instances
