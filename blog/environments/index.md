@@ -2,7 +2,7 @@
 slug: environments
 # title: Opensearch and Elasticsearch DSL is Better than SQL, you just don't know it yet
 title: Environments
-date: 25-02-2026
+date: 2026-02-25
 authors: [derrops]
 tags: [typescript]
 draft: true
