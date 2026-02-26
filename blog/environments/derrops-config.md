@@ -1,7 +1,7 @@
 ---
 slug: derrops-config
 # title: Opensearch and Elasticsearch DSL is Better than SQL, you just don't know it yet
-title: Derrops Config
+title: Derrops Guide to Config
 date: 2026-02-24
 authors: [derrops]
 tags: [typescript, devops, aws, config]

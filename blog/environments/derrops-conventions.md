@@ -2,12 +2,11 @@
 slug: derrops-conventions
 # title: Opensearch and Elasticsearch DSL is Better than SQL, you just don't know it yet
 title: Derrops Guide to Conventions
-date: 2026-02-24
+date: 2026-02-26
 authors: [derrops]
 tags: [typescript, devops, aws]
 draft: true
 ---
-
 
 
 # Naming Conventions and Segregation
@@ -38,10 +37,19 @@ These areas can all be condensed into the following guiding principals
 ## 1. Naming Consistency Principle
 
 **Definition:**  
-A given resource should have the *same name* in every environment—whether it’s `dev`, `prod`, or any other. For example, a resource called `user-service` should be named `user-service` in all environments, rather than `user-service-dev` or `user-service-prod`.
+A given resource should have the *same name* in every environment—whether it’s `dev`, `prod`, or any other. For example, a resource called `user-service` should be named `user-service` in all environments, rather than `user-service-dev` or `user-service-prod`. Environment must be represented by namespace isolation, not naming convention.
 
 **Why it matters:**  
 Consistent resource names dramatically simplify the process of grouping, querying, and managing deployment instances across various tools and platforms. It helps reduce cognitive load and operational complexity, especially as your infrastructure grows.
+
+:::note
+Globally unique name, such as with an s3 bucket, it can be that another customer on AWS takes the name of an S3 bucket that you had planned. One solution to this is including a random id within the name. But in general I've found this scenario rare, and losing predictability in the name which can lead to negative outcomes
+:::
+
+:::note
+Global services such as IAM which are global also may cause conflicts if you were to have more than 1 environment in an account **Prefer Account per Environment if Possible**
+:::
+
 
 ---
 
@@ -55,16 +63,9 @@ Stable naming reduces refactoring, lowers risk of errors, and leads to smoother 
 You'll also find that following this principal results in a better security posture, more on that later.
 
 
-### Exceptions
-
-:::note
-Globally unique name, such as with an s3 bucket, it can be that another customer on AWS takes the name of an S3 bucket that you had planned. One solution to this is including a random id within the name. But in general I've found this scenario rare, and losing predictability in the name which can lead to negative outcomes
-:::
 
 
-:::note
-Global services such as IAM which are global also may cause conflicts if you were to have more than 1 environment in an account **Prefer Account per Environment if Possible**
-:::
+
 
 
 
@@ -120,7 +121,10 @@ graph LR
 
 ### Prefix Structure
 
-If your configuration is **NOT** stored in the same namespace as the resource, you will have to have `{env}` in your naming conventions. It's challenging where to put `{env}`, as there are tradeoffs
+Structuring your names correctly is key to the success of your naming conventions.
+
+If your config store is **NOT** located in the same namespace as the resource, you will have to have `{env}` in your naming conventions. It's challenging where to put `{env}`, as there are tradeoffs
+Also note if your config store is **NOT** in the same `{region}`, then you will need to have `{region}` in your naming conventions.
 
 
 It is sometimes said:
@@ -133,27 +137,40 @@ Therefore in this decision we should optimize for making `Change Easy`, which wo
 
 This guides us to pic the order as segments as follows:
 
-| Segment | Stability |
-|---------|-----------|
-| `{region}`  | for all intensive purposes will never change |
-| `{org}`  | changes almost never, unless re-org |
-| `{domain}` | changes rarely, capabilities outlive teams, only if domain is modelled differently and refactored |
-| `{service}` | changes occasionally, deployable units get renamed, split or merged |
-| `{key}` | changes most frequently |
+| Segment | Question | Stability |
+|---------|----------|-----------|
+| `{region}`  | **Where** in the world? | for all intensive purposes will never change |
+| `{env}`  | **Which** deployment stage? | for all intensive purposes will never change |
+| `{org}`  | **Who** owns the resource? | changes almost never, unless re-org |
+| `{domain}` | **What** business capability? | changes rarely, capabilities outlive teams, only if domain is modelled differently and refactored |
+| `{service}` | **Which** deployable unit? | changes occasionally, deployable units get renamed, split or merged |
+| `{key}` | **What** configuration value? | changes most frequently |
 
+Reason:
 
+Changing leftmost segments causes the greatest disruption.
+
+Example:
+
+Bad:
+`service--domain--org--key`
+
+Renaming domain breaks entire namespace.
+
+Good:
+`org--domain--service--key`
+
+Renaming service only affects its subtree.
 
 
 | Segment | Example            | Description                                                                                                                             |
 |---------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| `{region}`     | ap-southeast-2               | *(Optional if platform will be multi-region)* The region of the deployment. This may be required if you are not going to segregate your regions by accounts, then there will be conflicts as some services are global (AWS IAM) or share the same namespace (such as S3 Buckets which must be unique across all regions). Deciding to have different accounts for different regions mitigates this issue, but this decision can sometimes be taking other factors into account than this guide. Note this region is the Availability Zone, and not the country itself. | 
+| `{region}`     | ap-southeast-2               | *(Optional if platform will be multi-region)* The region of the deployment. This may be required if you are not going to segregate your regions by accounts, then there will be conflicts as some services are global (AWS IAM) or share the same namespace (such as S3 Buckets which must be unique across all regions). Deciding to have different accounts for different regions mitigates this issue, but this decision can sometimes be taking other factors into account than this guide. Note this is the Datacenter Region (e.g. ap-southeast-2), not the country itself. | 
 | `{env}`   | dev                | *(Only if Required)* The deployment environment. Only required in the prefix, when the config key lives in a different namespace than the resource accessing it. If your config is stored in the same account or namespace as the resource, this segment is redundant and should be omitted. However if a globally unique name is required, such as with an s3 bucket, this this will be required in the prefix.|
 | `{org}`     | acme               | The top-level tenant or business unit. Provides hard namespace isolation. Chosen to be stable and long-lived—changes are rare and treated as a migration event. |
 | `{domain}`  | payments           | A bounded business or technical capability that can be owned and reasoned about independently. More stable than a team name, more meaningful than a platform label. |
 | `{service}` | checkout-api       | The concrete, deployable unit within a domain. Specific enough to be unambiguous, broad enough to own multiple configuration values beneath it. |
 | `{key}`     | stripe-webhook-secret | The actual parameter being addressed. Everything above it is context and namespace; this is the value you are looking up.                     |
-
-
 
 
 ### Delimiters
@@ -179,7 +196,7 @@ As `-` is the only supported delimiter for all resource types, including another
 | Naming Convention      | Priority  | Resource Type   | Delimiter | Word Delimiter | Description                                                                                                                         | Example                                |
 |------------------------|-----------|-----------------|-----------|----------------|-------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
 | *hierarchical-case*    | 1         | Config Keys     | `/`       | `-`            | Hierarchical naming convention using a path-style namespace, useful for configuration keys.                                         | `/acme/store/checkout/api-key`         |
-| *compound kebab-case*  | 2         | Resource IDs    | `--`      | `-`            | Used by AWS internally. Kebab-case is URL and code friendly; more acceptable than underscores for most services, especially for resource IDs.                | `acme--store--checkout--api-feature`   |
+| *compound kebab-case*  | 2         | Resource IDs    | `--`      | `-`            | Kebab-case is URL and code friendly; more acceptable than underscores for most services, especially for resource IDs.                | `acme--store--checkout--api-feature`   |
 
 - Often `1` is not possible as a name (for example IAC solutions such as AWS Cloudformation)
 - `-` is preferred over `_` as it is more URL friendly (can appear in the host name where as underscore cannot).
@@ -209,9 +226,6 @@ We will assume going forward there is only 1 region, so there is no need for seg
  2. `{org}--{domain}--{service}--{key}` => `acme--payments--checkout-api--stripe-webhook-secret`
 
 
-# TODO Edge Cases
-
- 1. Cross cutting secrets/config which do not belong to any one particular domain, service or organization.
 
 ## Rational for Convention
 
@@ -224,20 +238,31 @@ We will assume going forward there is only 1 region, so there is no need for seg
 | `/acme/payments/checkout-api/*` | Everything for a specific service |
 | `/acme/payments/checkout-api/stripe-webhook-secret` | A specific value |
 
+If `{env}` and `{region}` would be in there then 
 
 
-Resource Type | region | org | domain | service | key |
-|-------------|--------|-----|--------|---------|-----|
-| AWS S3 | ✅ | ✅ | ✅ | ✅ | |
-| AWS IAM | ✅ | ✅ | ✅ | ✅ | |
-| SSM Parameters | | ✅ | ✅ | ✅ | ✅ |
+| Prefix | Meaning |
+|--------|---------|
+| `/ap-southeast-2/*` | Everything in the region | 
+| `/ap-southeast-2/prod/*` | Everything in the environment | 
+| `/ap-southeast-2/prod/acme` | Everything in the org, in that env | 
 
 
-## Each Component
+## Segment Definitions
 
 ### Region
+The region identifies the physical or logical infrastructure region where the deployment instance resides.
+
+Examples:
+ - ap-southeast-2
+ - us-east-1
+ - eu-west-1
 
 ### Org
+The org identifies the top-level organizational boundary. Which department owns the resource.
+:::note
+Not the team itself as teams can change more frequently than the org itself, otherwise this becomes too unstable to use as a namespace boundary.
+:::
 
 ### Domain
 
@@ -248,8 +273,27 @@ Resource Type | region | org | domain | service | key |
 
 ### Service
 
-## Key
+The service represents the concrete deployable unit. This is the actual runtime component which is typically the primary identity engineers interact with..
 
+Examples:
+ - checkout-api
+ - auth-service
+ - webhook-worker
+ - billing-scheduler
+
+Deployment Units could be in the form of:
+ - Lambda function
+ - Microservice
+
+## Key
+The key identifies a specific configuration value, secret, resource, or parameter belonging to a service.
+Represents the exact value being referenced.
+Everything to the left provides context.
+
+ - Created
+ - Deleted
+ - Renamed
+ - Rotated
 
 
 :::note
@@ -272,3 +316,54 @@ Many would argue that you need to tag every resource with what environment it li
 
 If there is some other need to tag resources, such as for security or compliance or because of a tool or service you are using.
 Then have the `Account` the source of truth and perform batch tagging as needed. This will reduce the *Maintainability*.
+
+
+
+
+# Additional Concepts:
+
+
+## Showing segments vs resource types
+
+Resource Type | region | org | domain | service | key |
+|-------------|--------|-----|--------|---------|-----|
+| AWS S3 | ✅ | ✅ | ✅ | ✅ | |
+| AWS IAM | ✅ | ✅ | ✅ | ✅ | |
+| SSM Parameters | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+
+**Cross cutting secrets/config**
+:::info
+Sometimes there will be cross cutting secrets/config which do not belong to any one particular domain, service or organization. Such as if the organization has purchased a service to be used by 2 different orgs. If this configuration cannot be definitively assigned to one or the other, then it should be stored in a cross cutting location, and permissions will need to be explicitly granted, rather than relying on prefix conventions.
+:::
+
+
+**Logical Name vs Physical Name**
+
+Logical Name:
+checkout-api
+
+Physical Deployment Instance:
+Account: prod
+Region: ap-southeast-2
+Name: checkout-api
+
+Fully Qualified Identity:
+ap-southeast-2/prod/checkout-api
+
+Name remains constant. Namespace varies.
+
+**Deployment Instance**
+
+A Deployment Instance is a concrete runtime instantiation of a logical resource within a specific namespace.
+
+Example:
+
+Logical Resource: checkout-api
+
+Deployment Instances:
+- Account: dev → checkout-api
+- Account: prod → checkout-api
+- Account: uat → checkout-api
+
+All share the same logical name but exist in different namespaces.
