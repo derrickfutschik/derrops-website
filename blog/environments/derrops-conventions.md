@@ -1,15 +1,15 @@
 ---
 slug: derrops-conventions
 # title: Opensearch and Elasticsearch DSL is Better than SQL, you just don't know it yet
-title: Derrops Guide to Conventions
+title: Derrops Guide to Naming Conventions and Segregation
 date: 2026-02-26
 authors: [derrops]
 tags: [typescript, devops, aws]
-draft: true
+draft: false
 ---
 
 
-# Naming Conventions and Segregation
+# Derrops Guide to Naming Conventions and Segregation
 
 I've been meaning to make this guide, having worked at a SAAS from the very get-go, I've now got to live with some good and some bad decisions. It's been very hard to pinpoint why the naming conventions have lead to complexity. And overtime I realized that with engineering, you often make decisions based on the tradeoffs, but ultimately you do optimize for something. If you don't figure out what that something should be, you end having a solution which is not optimized for the problem you are trying to solve.
 
@@ -127,41 +127,9 @@ If your config store is **NOT** located in the same namespace as the resource, y
 Also note if your config store is **NOT** in the same `{region}`, then you will need to have `{region}` in your naming conventions.
 
 
-It is sometimes said:
 
-> Good architecture makes change easy. Bad architecture makes change hard.
 
-Therefore in this decision we should optimize for making `Change Easy`, which would dictate the 
-
-> stability should decrease left to right in a prefix
-
-This guides us to pic the order as segments as follows:
-
-| Segment | Question | Stability |
-|---------|----------|-----------|
-| `{region}`  | **Where** in the world? | for all intensive purposes will never change |
-| `{env}`  | **Which** deployment stage? | for all intensive purposes will never change |
-| `{org}`  | **Who** owns the resource? | changes almost never, unless re-org |
-| `{domain}` | **What** business capability? | changes rarely, capabilities outlive teams, only if domain is modelled differently and refactored |
-| `{service}` | **Which** deployable unit? | changes occasionally, deployable units get renamed, split or merged |
-| `{key}` | **What** configuration value? | changes most frequently |
-
-Reason:
-
-Changing leftmost segments causes the greatest disruption.
-
-Example:
-
-Bad:
-`service--domain--org--key`
-
-Renaming domain breaks entire namespace.
-
-Good:
-`org--domain--service--key`
-
-Renaming service only affects its subtree.
-
+## Segment Definitions
 
 | Segment | Example            | Description                                                                                                                             |
 |---------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
@@ -172,9 +140,45 @@ Renaming service only affects its subtree.
 | `{service}` | checkout-api       | The concrete, deployable unit within a domain. Specific enough to be unambiguous, broad enough to own multiple configuration values beneath it. |
 | `{key}`     | stripe-webhook-secret | The actual parameter being addressed. Everything above it is context and namespace; this is the value you are looking up.                     |
 
+ 
+## Segment Order
+
+It is sometimes said:
+
+> Good architecture makes change easy. Bad architecture makes change hard.
+
+Therefore in this decision we should optimize for making `Change Easy`, which would dictate the 
+
+> stability should decrease left to right in a prefix
+
+- Changing leftmost segments causes the greatest disruption.
+- Renaming service only affects its subtree.
+
+Therefore it makes sense the order of the segments should be the most stable to the least stable:
+
+## Segment Stability
+
+| Segment | Question | Stability | Scope Boundary | Stability |
+|---------|----------|-----------|----------------|-----------|
+| `{region}`  | **Where** in the world? | Extremely High | Infrastructure locality boundary | for all intensive purposes will never change |
+| `{env}`  | **Which** deployment stage? | Extremely High | Deployment lifecycle boundary | for all intensive purposes will never change |
+| `{org}`  | **Who** owns the resource? | Very High | Ownership boundary | changes almost never, unless re-org |
+| `{domain}` | **What** business capability? | High | Capability boundary | changes rarely, capabilities outlive teams, only if domain is modelled differently and refactored |
+| `{service}` | **Which** deployable unit? | Medium | Deployment unit boundary | changes occasionally, deployable units get renamed, split or merged |
+| `{key}` | **What** configuration value? | Low | Configuration/value boundary | changes most frequently |
+
+### Fully Qualified Examples
+
+| Example | Value |
+|---------|-------|
+| Hierarchical (config stores) | `/ap-southeast-2/prod/acme/payments/checkout-api/stripe-webhook-secret`
+| Compound kebab-case (resource names) | `/ap-southeast-2/prod/acme/payments/checkout-api/stripe-webhook-secret`
+| Account-segregated (preferred): | `acme--payments--checkout-api--stripe-webhook-secret` |
+
 
 ### Delimiters
 
+Now that we have segments, and their order, we need to decide on the delimiters to use.
 Here are some possible candidates evaluated over different resource types.
 You'll see that the `-` is most supported. `_` is a strong candidate but fails when it comes to host names and S3 bucket names.
 
@@ -211,11 +215,8 @@ If a resource already has native support for a delimiter, it should be used inst
 :::
 
 :::note
-Another factor when deciding when to use a native delimiter, vs creating a new resource is 
-
-An exception to this rule might be when you plan on centralizing data collection, and you want all data to be stored in a single location. You may want to pre-imptivlely segragate the data in each environment already, even though there will be only 1 segment, to symplify the sync operation.
+An exception to this rule might be when you plan on centralizing data collection, and you want all data to be stored in a single location. You may want to preemptively segregate the data in each environment already, even though there will be only 1 segment, to simplify the sync operation.
 :::
-
 
 :::note
 We will assume going forward there is only 1 region, so there is no need for segregation by region, but if there wasn't, region would need to be included in the prefix
@@ -224,7 +225,6 @@ We will assume going forward there is only 1 region, so there is no need for seg
 **Full example:**
  1. `/{org}/{domain}/{service}/{key}` => `/acme/payments/checkout-api/stripe-webhook-secret`
  2. `{org}--{domain}--{service}--{key}` => `acme--payments--checkout-api--stripe-webhook-secret`
-
 
 
 ## Rational for Convention
@@ -320,16 +320,129 @@ Then have the `Account` the source of truth and perform batch tagging as needed.
 
 
 
-# Additional Concepts:
+# Concrete Examples:
+
+For the naming convention we don't want to have the `{env}` and `{region}` because of the `Naming Consistency Principle`.
+But because of uniqueness constraints within a namespace this is not always possible. See uniqueness constraints below:
 
 
-## Showing segments vs resource types
+### Uniqueness Constraints
 
-Resource Type | region | org | domain | service | key |
-|-------------|--------|-----|--------|---------|-----|
-| AWS S3 | ✅ | ✅ | ✅ | ✅ | |
-| AWS IAM | ✅ | ✅ | ✅ | ✅ | |
-| SSM Parameters | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Service | Scope Boundary | region | env | Example |
+|---------|----------------|--------|-----|---------|
+| Global Namespace | Globally Unique across all Namespaces | ✅ | ✅ | AWS S3 Bucket |
+| Global Service | Unique in all Regions within a Namespace | ✅ | ❌ | IAM Role Name |
+| Regional Namespace |Unique in a Region within a Scope Boundary | ❌ | ❌ | RDS Instance Identifier |
+
+
+### Concrete Example
+
+
+| Resource Type                 | Scope      | Global? | Physical Name                                                      | `{region}` required | `{env}` required | Rationale               |
+| ----------------------------- | ---------- | ------- | ------------------------------------------------------------------ | ------------------- | ---------------- | ----------------------- |
+| S3 Bucket                     | Global     | ✅       | ap-southeast-2--prod--acme--payments--checkout-api--backup-storage | ✅                   | ✅                | Must be globally unique |
+| Route53 Hosted Zone           | Global     | ✅       | prod.checkout-api.acme.com                                         | ❌                   | ✅                | DNS global namespace    |
+| Route53 Record                | Zone scope | ✅       | checkout-api.prod.acme.com                                         | ❌                   | ✅                | DNS global namespace    |
+| CloudFront Distribution Alias | Global     | ✅       | checkout-api.prod.acme.com                                         | ❌                   | ✅                | Global DNS namespace    |
+| ACM Certificate Domain        | Global     | ✅       | checkout-api.prod.acme.com                                         | ❌                   | ✅                | Global DNS namespace    |
+| S3 Static Website             | Global     | ✅       | prod.acme-checkout-api                                             | ✅                   | ✅                | Global namespace        |
+
+
+
+# Domain and DNS Naming Conventions
+
+DNS naming is a special case where hierarchy is reversed compared to prefix-based naming conventions.
+
+Prefix-based systems grow **left → right**:
+
+```
+/{org}/{domain}/{service}
+```
+
+DNS grows **right → left**:
+
+```
+{service}.{domain}.{org}.com
+```
+
+Both represent the same logical hierarchy in opposite directions.
+
+---
+
+## Core Principle
+
+> DNS names must preserve the same logical hierarchy as prefixes, but in reverse order.
+
+| Prefix                        | DNS Equivalent                   |
+| ----------------------------- | -------------------------------- |
+| `/acme/payments/checkout-api` | `checkout-api.payments.acme.com` |
+| `/acme/identity/auth-service` | `auth-service.identity.acme.com` |
+| `/acme/portal/web`            | `web.portal.acme.com`            |
+
+Hierarchy equivalence:
+
+| Logical Level | Prefix       | DNS                            |
+| ------------- | ------------ | ------------------------------ |
+| Org           | acme         | acme.com                       |
+| Domain        | payments     | payments.acme.com              |
+| Service       | checkout-api | checkout-api.payments.acme.com |
+
+---
+
+## Environment Inclusion
+
+Environment should only appear in DNS when environments share the same hosted zone or namespace.
+
+Preferred (account-segregated environments):
+
+```
+checkout-api.payments.acme.com
+```
+
+Same name exists independently in each environment account.
+
+Alternative (shared hosted zone):
+
+```
+checkout-api.prod.acme.com
+checkout-api.dev.acme.com
+```
+
+Environment qualifies the deployment instance and appears between service and org.
+
+---
+
+## Route53 Hosted Zone Strategy
+
+Preferred:
+
+One hosted zone per environment account:
+
+```
+acme.com
+```
+
+Environment isolation is provided by the account boundary.
+
+Alternative (shared account):
+
+```
+prod.acme.com
+dev.acme.com
+```
+
+---
+
+## Summary
+
+| Prefix Convention            | DNS Convention                 |
+| ---------------------------- | ------------------------------ |
+| `{org}/{domain}/{service}`   | `{service}.{domain}.{org}.com` |
+| Hierarchy grows left → right | Hierarchy grows right → left   |
+| Namespace via account        | Namespace via domain/subdomain |
+| Logical identity preserved   | Logical identity preserved     |
+
+DNS is not an exception to the naming convention — it is the same hierarchy represented in reverse due to DNS delegation design.
 
 
 **Cross cutting secrets/config**
