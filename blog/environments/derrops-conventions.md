@@ -341,7 +341,7 @@ But because of uniqueness constraints within a namespace this is not always poss
 | Resource Type                 | Scope      | Global? | Physical Name                                                      | `{region}` required | `{env}` required | Rationale               |
 | ----------------------------- | ---------- | ------- | ------------------------------------------------------------------ | ------------------- | ---------------- | ----------------------- |
 | S3 Bucket                     | Global     | ✅       | ap-southeast-2--prod--acme--payments--checkout-api--backup-storage | ✅                   | ✅                | Must be globally unique |
-| Route53 Hosted Zone           | Global     | ✅       | prod.checkout-api.acme.com                                         | ❌                   | ✅                | DNS global namespace    |
+| Route53 Hosted Zone           | Global     | ✅       | prod.acme.com                                                      | ❌                   | ✅                | Each env account is delegated its own subdomain of the apex domain |
 | Route53 Record                | Zone scope | ✅       | checkout-api.prod.acme.com                                         | ❌                   | ✅                | DNS global namespace    |
 | CloudFront Distribution Alias | Global     | ✅       | checkout-api.prod.acme.com                                         | ❌                   | ✅                | Global DNS namespace    |
 | ACM Certificate Domain        | Global     | ✅       | checkout-api.prod.acme.com                                         | ❌                   | ✅                | Global DNS namespace    |
@@ -391,24 +391,30 @@ Hierarchy equivalence:
 
 ## Environment Inclusion
 
-Environment should only appear in DNS when environments share the same hosted zone or namespace.
+Environment appears in DNS between the service and the org, following the convention:
 
-Preferred (account-segregated environments):
+```
+{service}.{env}.{org}.com
+```
+
+Each environment account is delegated its own subdomain of the apex domain:
+
+```
+checkout-api.prod.acme.com   (prod account owns prod.acme.com)
+checkout-api.dev.acme.com    (dev account owns dev.acme.com)
+```
+
+The apex domain (`acme.com`) is managed in a central network or DNS account. Each environment account is delegated a subdomain (`prod.acme.com`, `dev.acme.com`), giving that account full ownership and autonomy over its DNS records. This mirrors how account segregation provides namespace isolation — the subdomain **is** the account's namespace in DNS.
+
+This approach has a key advantage: any new service deployed into an account is automatically under that account's subdomain, with no coordination required at the apex level.
+
+Alternative (apex zone per account, no env in DNS):
 
 ```
 checkout-api.payments.acme.com
 ```
 
-Same name exists independently in each environment account.
-
-Alternative (shared hosted zone):
-
-```
-checkout-api.prod.acme.com
-checkout-api.dev.acme.com
-```
-
-Environment qualifies the deployment instance and appears between service and org.
+Same name exists independently in each environment account. Env isolation is provided entirely by the account boundary with no qualifier in the URL.
 
 ---
 
@@ -416,31 +422,40 @@ Environment qualifies the deployment instance and appears between service and or
 
 Preferred:
 
-One hosted zone per environment account:
+The apex domain (`acme.com`) is managed in a central account. Each environment account is delegated its own subdomain via NS record delegation:
+
+```
+prod.acme.com   (prod account)
+dev.acme.com    (dev account)
+uat.acme.com    (uat account)
+```
+
+Services are then addressed as `{service}.{env}.{org}.com`:
+
+```
+checkout-api.prod.acme.com
+```
+
+Each account has full autonomy over its subdomain. Adding a new service or record requires no changes to the central apex zone. The apex zone only needs to be updated when a new environment account is onboarded.
+
+Alternative (apex zone per account):
 
 ```
 acme.com
 ```
 
-Environment isolation is provided by the account boundary.
-
-Alternative (shared account):
-
-```
-prod.acme.com
-dev.acme.com
-```
+Environment isolation is provided entirely by the account boundary. No env qualifier appears in DNS.
 
 ---
 
 ## Summary
 
-| Prefix Convention            | DNS Convention                 |
-| ---------------------------- | ------------------------------ |
-| `{org}/{domain}/{service}`   | `{service}.{domain}.{org}.com` |
-| Hierarchy grows left → right | Hierarchy grows right → left   |
-| Namespace via account        | Namespace via domain/subdomain |
-| Logical identity preserved   | Logical identity preserved     |
+| Prefix Convention            | DNS Convention                  |
+| ---------------------------- | ------------------------------- |
+| `{org}/{domain}/{service}`   | `{service}.{env}.{org}.com`     |
+| Hierarchy grows left → right | Hierarchy grows right → left    |
+| Namespace via account        | Namespace via env subdomain     |
+| Logical identity preserved   | Logical identity preserved      |
 
 DNS is not an exception to the naming convention — it is the same hierarchy represented in reverse due to DNS delegation design.
 
