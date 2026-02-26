@@ -138,7 +138,8 @@ Also note if your config store is **NOT** in the same `{region}`, then you will 
 | `{org}`     | acme               | The top-level tenant or business unit. Provides hard namespace isolation. Chosen to be stable and long-lived—changes are rare and treated as a migration event. |
 | `{domain}`  | payments           | A bounded business or technical capability that can be owned and reasoned about independently. More stable than a team name, more meaningful than a platform label. |
 | `{service}` | checkout-api       | The concrete, deployable unit within a domain. Specific enough to be unambiguous, broad enough to own multiple configuration values beneath it. |
-| `{key}`     | stripe-webhook-secret | The actual parameter being addressed. Everything above it is context and namespace; this is the value you are looking up.                     |
+| `{partition}` | 2024/01/15/14    | *(Optional — data partitioning only)* A runtime-determined subdivision used to group high-volume data into discrete, filterable sets. Most common in data storage contexts such as S3 log or event data. `{partition}` is the **only** segment permitted to contain internal hierarchical delimiters — a single partition can represent multiple levels of granularity (e.g. `{year}/{month}/{day}/{hour}`), each of which remains a valid, queryable prefix boundary. All other segments must be flat and contain no internal delimiters. Not applicable to config stores or resource naming. |
+| `{key}`     | stripe-webhook-secret | The final, addressable artifact. Everything above it is context and namespace — `{key}` is the specific thing being referenced. The form varies by system: a config parameter name (`stripe-webhook-secret`), a filename (`transactions.json`), or an image tag (`1.2.3`) — but the concept is always the same: it uniquely identifies the artifact within its namespace. A new segment is only warranted when it creates a meaningful operational boundary — a prefix you would independently query. System-generated uniqueness suffixes (e.g. sequence numbers appended by parallel writers like Kinesis Firehose or Spark) do not qualify; they carry no business meaning and are simply part of `{key}`, but do not make up part of the identity. |
 
  
 ## Segment Order
@@ -165,6 +166,7 @@ Therefore it makes sense the order of the segments should be the most stable to 
 | `{org}`  | **Who** owns the resource? | Very High | Ownership boundary | changes almost never, unless re-org |
 | `{domain}` | **What** business capability? | High | Capability boundary | changes rarely, capabilities outlive teams, only if domain is modelled differently and refactored |
 | `{service}` | **Which** deployable unit? | Medium | Deployment unit boundary | changes occasionally, deployable units get renamed, split or merged |
+| `{partition}` | **How** is data subdivided? | Very Low *(Optional)* | Data partitioning boundary | changes constantly; new values generated at runtime (e.g. a new date partition every day). Only relevant for data storage — omit everywhere else |
 | `{key}` | **What** configuration value? | Low | Configuration/value boundary | changes most frequently |
 
 ### Fully Qualified Examples
@@ -174,6 +176,7 @@ Therefore it makes sense the order of the segments should be the most stable to 
 | Hierarchical (config stores) | `/ap-southeast-2/prod/acme/payments/checkout-api/stripe-webhook-secret`
 | Compound kebab-case (resource names) | `/ap-southeast-2/prod/acme/payments/checkout-api/stripe-webhook-secret`
 | Account-segregated (preferred): | `acme--payments--checkout-api--stripe-webhook-secret` |
+| Data storage with partition (S3 object key) | `acme/payments/checkout-api/2024-01-15/transactions.json` |
 
 
 ### Delimiters
@@ -229,23 +232,40 @@ We will assume going forward there is only 1 region, so there is no need for seg
 
 ## Rational for Convention
 
-#### Every prefix is a meaningful operational boundary 
+#### Every prefix is a meaningful operational boundary
 
-| Prefix | Meaning |
-|--------|---------|
-| `/acme/*` | Everything in the org | 
-| `/acme/payments/*` | Everything owned by payments | 
-| `/acme/payments/checkout-api/*` | Everything for a specific service |
-| `/acme/payments/checkout-api/stripe-webhook-secret` | A specific value |
+**Account-segregated (preferred) — config store:**
 
-If `{env}` and `{region}` would be in there then 
+| Prefix | Boundary | Example Operation |
+|--------|----------|-------------------|
+| `/acme/*` | Entire org | Audit all config across the org |
+| `/acme/payments/*` | Domain | Grant the payments team read access to their config |
+| `/acme/payments/checkout-api/*` | Service | Fetch all config for a service on startup |
+| `/acme/payments/checkout-api/stripe-webhook-secret` | Value | Read a specific secret |
 
+**Account-segregated — data storage with partition (e.g. S3 log data):**
 
-| Prefix | Meaning |
-|--------|---------|
-| `/ap-southeast-2/*` | Everything in the region | 
-| `/ap-southeast-2/prod/*` | Everything in the environment | 
-| `/ap-southeast-2/prod/acme` | Everything in the org, in that env | 
+| Prefix | Boundary | Example Operation |
+|--------|----------|-------------------|
+| `acme/` | Entire org | Replicate all org data to a central bucket |
+| `acme/payments/` | Domain | Process all events owned by payments |
+| `acme/payments/checkout-api/` | Service | Backfill or reprocess all logs for a service |
+| `acme/payments/checkout-api/2024/` | Partition — year | Archive or aggregate a full year of data |
+| `acme/payments/checkout-api/2024/01/` | Partition — month | Load a month's data into a warehouse |
+| `acme/payments/checkout-api/2024/01/15/` | Partition — day | Replay a day's events or run a daily job |
+| `acme/payments/checkout-api/2024/01/15/14/` | Partition — hour | Download all log data for a specific hour |
+| `acme/payments/checkout-api/2024/01/15/14/transactions-00001.json` | Value | Fetch a specific log file |
+
+**Non-account-segregated — env and region included:**
+
+| Prefix | Boundary | Example Operation |
+|--------|----------|-------------------|
+| `/ap-southeast-2/*` | Region | List all resources in a region |
+| `/ap-southeast-2/prod/*` | Environment | Audit all production config |
+| `/ap-southeast-2/prod/acme/*` | Org | Fetch all org config in that env |
+| `/ap-southeast-2/prod/acme/payments/*` | Domain | Grant payments access to their prod config |
+| `/ap-southeast-2/prod/acme/payments/checkout-api/*` | Service | Fetch all config for a service on startup |
+| `/ap-southeast-2/prod/acme/payments/checkout-api/stripe-webhook-secret` | Value | Read a specific secret |
 
 
 ## Segment Definitions
@@ -349,9 +369,19 @@ But because of uniqueness constraints within a namespace this is not always poss
 
 
 
-# Domain and DNS Naming Conventions
+# Following Native Hierarchies
 
-DNS naming is a special case where hierarchy is reversed compared to prefix-based naming conventions.
+Many systems have their own built-in hierarchical constructs — path delimiters, subdomain delegation, namespace scoping. When a system already provides a hierarchy, map your naming segments onto it rather than encoding structure into flat compound names.
+
+> If the system provides a hierarchy, use it. Don't fight it.
+
+The same logical segments (`{org}`, `{env}`, `{domain}`, `{service}`, `{key}`) apply regardless of the system — only the direction, delimiter, and order may differ. Mapping onto native hierarchies preserves the system's built-in ability to filter, delegate, and scope by prefix or level.
+
+---
+
+## DNS
+
+DNS naming is a special case where the hierarchy is reversed compared to prefix-based naming conventions.
 
 Prefix-based systems grow **left → right**:
 
@@ -362,14 +392,12 @@ Prefix-based systems grow **left → right**:
 DNS grows **right → left**:
 
 ```
-{service}.{domain}.{org}.com
+{service}.{env}.{org}.com
 ```
 
 Both represent the same logical hierarchy in opposite directions.
 
----
-
-## Core Principle
+### Core Principle
 
 > DNS names must preserve the same logical hierarchy as prefixes, but in reverse order.
 
@@ -387,11 +415,9 @@ Hierarchy equivalence:
 | Domain        | payments     | payments.acme.com              |
 | Service       | checkout-api | checkout-api.payments.acme.com |
 
----
+### Environment Inclusion
 
-## Environment Inclusion
-
-Environment appears in DNS between the service and the org, following the convention:
+Environment appears in DNS between the service and the org:
 
 ```
 {service}.{env}.{org}.com
@@ -406,7 +432,7 @@ checkout-api.dev.acme.com    (dev account owns dev.acme.com)
 
 The apex domain (`acme.com`) is managed in a central network or DNS account. Each environment account is delegated a subdomain (`prod.acme.com`, `dev.acme.com`), giving that account full ownership and autonomy over its DNS records. This mirrors how account segregation provides namespace isolation — the subdomain **is** the account's namespace in DNS.
 
-This approach has a key advantage: any new service deployed into an account is automatically under that account's subdomain, with no coordination required at the apex level.
+Any new service deployed into an account is automatically under that account's subdomain, with no coordination required at the apex level.
 
 Alternative (apex zone per account, no env in DNS):
 
@@ -416,9 +442,7 @@ checkout-api.payments.acme.com
 
 Same name exists independently in each environment account. Env isolation is provided entirely by the account boundary with no qualifier in the URL.
 
----
-
-## Route53 Hosted Zone Strategy
+### Route53 Hosted Zone Strategy
 
 Preferred:
 
@@ -446,9 +470,7 @@ acme.com
 
 Environment isolation is provided entirely by the account boundary. No env qualifier appears in DNS.
 
----
-
-## Summary
+### Summary
 
 | Prefix Convention            | DNS Convention                  |
 | ---------------------------- | ------------------------------- |
@@ -458,6 +480,124 @@ Environment isolation is provided entirely by the account boundary. No env quali
 | Logical identity preserved   | Logical identity preserved      |
 
 DNS is not an exception to the naming convention — it is the same hierarchy represented in reverse due to DNS delegation design.
+
+---
+
+## AWS SSM Parameter Store
+
+SSM Parameter Store uses `/` as a native path delimiter and supports `GetParametersByPath` to fetch all parameters under a given prefix. Use it directly as the segment delimiter — it is the hierarchical naming convention with no translation required.
+
+```
+/{org}/{domain}/{service}/{key}
+/acme/payments/checkout-api/stripe-webhook-secret
+```
+
+Every prefix is a valid, queryable operational boundary:
+
+| Path                                | Meaning                                     |
+| ----------------------------------- | ------------------------------------------- |
+| `/acme/*`                           | All parameters for the org                  |
+| `/acme/payments/*`                  | All parameters owned by payments            |
+| `/acme/payments/checkout-api/*`     | All parameters for a specific service       |
+| `/acme/payments/checkout-api/stripe-webhook-secret` | A specific value           |
+
+:::tip
+IAM policies can scope access using path prefixes. A role for `checkout-api` can be granted access to only `/acme/payments/checkout-api/*`, with no wildcard bleed into sibling services or domains.
+:::
+
+If the Parameter Store is **not** account-segregated by environment, add `{env}` after `{org}`:
+
+```
+/{org}/{env}/{domain}/{service}/{key}
+/acme/prod/payments/checkout-api/stripe-webhook-secret
+```
+
+---
+
+## AWS S3 Object Keys
+
+S3 object keys use `/` as a logical prefix delimiter. `ListObjectsV2` accepts a `Prefix` parameter, making it efficient to list or process objects scoped to any segment boundary.
+
+For most resources (e.g. application artefacts, backups), the standard hierarchy applies:
+
+```
+{org}/{domain}/{service}/{key}
+acme/payments/checkout-api/schema-v3.sql
+```
+
+When storing high-volume data such as logs or events — where output is continuous and needs to be queried or processed in discrete chunks — add `{partition}` before `{key}`:
+
+```
+{org}/{domain}/{service}/{partition}/{key}
+acme/payments/checkout-api/2024/01/15/14/transactions-00001.json
+```
+
+In this context `{key}` is the filename — the same segment, just a different form. `{partition}` groups many such `{key}` values into a queryable set.
+
+`{partition}` is the **only** segment permitted to contain internal hierarchical delimiters. This allows a partition to span multiple levels of granularity within a single logical segment — for example, time-series log data is commonly partitioned as `{year}/{month}/{day}/{hour}`. Every sub-level of the partition remains a valid prefix boundary. All other segments must be flat.
+
+Prefix boundaries remain meaningful at every level, including within the partition itself:
+
+| Prefix                                            | Scope                                                      |
+| ------------------------------------------------- | ---------------------------------------------------------- |
+| `acme/`                                           | All objects for the org                                    |
+| `acme/payments/`                                  | All objects owned by payments                              |
+| `acme/payments/checkout-api/`                     | All objects for a specific service                         |
+| `acme/payments/checkout-api/2024/`                | All log data for a given year                              |
+| `acme/payments/checkout-api/2024/01/`             | All log data for a given month                             |
+| `acme/payments/checkout-api/2024/01/15/`          | All log data for a given day                               |
+| `acme/payments/checkout-api/2024/01/15/14/`       | All log data for a specific hour — download or replay that time window |
+| `acme/payments/checkout-api/2024/01/15/14/transactions-00001.json` | A specific log file              |
+
+:::note
+S3 bucket names are globally unique and require `{env}` and often `{region}` in the bucket name itself (see Concrete Examples above). But within the bucket, object key prefixes follow the standard hierarchy without `{env}` — the bucket name is already the environment boundary.
+:::
+
+
+---
+
+## AWS IAM Paths
+
+IAM roles, users, groups, and policies support an optional `/path/` prefix that can be used to organise resources and scope access via IAM policy conditions (`iam:ResourceTag` or path-based conditions).
+
+```
+/{org}/{domain}/{service}/
+/acme/payments/checkout-api/
+```
+
+A policy granting cross-service access to everything under payments:
+
+```json
+"Resource": "arn:aws:iam::*:role/acme/payments/*"
+```
+
+| IAM Path                        | Scope                               |
+| ------------------------------- | ----------------------------------- |
+| `/acme/*`                       | All roles in the org                |
+| `/acme/payments/*`              | All roles owned by payments         |
+| `/acme/payments/checkout-api/*` | All roles for a specific service    |
+
+---
+
+## Container Image Registries
+
+Container registries such as ECR, Docker Hub, and GHCR use a `{registry}/{namespace}/{image}:{tag}` structure. Map org and domain onto the namespace hierarchy, with the image tag serving as `{key}`:
+
+```
+{registry}/{org}/{domain}/{service}:{key}
+```
+
+The `:` is the native delimiter for the tag in image references — the same role `/` plays in path hierarchies. `{key}` here is the image tag (e.g. `1.2.3`): the final identifier that specifies exactly which artifact is being pulled.
+
+Examples:
+
+| Registry     | Example                                                              |
+| ------------ | -------------------------------------------------------------------- |
+| ECR          | `123456789.dkr.ecr.ap-southeast-2.amazonaws.com/acme/payments/checkout-api:1.2.3` |
+| Docker Hub   | `docker.io/acme/checkout-api:1.2.3`                                  |
+| GHCR         | `ghcr.io/acme/checkout-api:1.2.3`                                    |
+
+`{key}` encodes the version, not the environment. Environment is determined by which account pulls and runs the image, not by the image reference itself.
 
 
 **Cross cutting secrets/config**
