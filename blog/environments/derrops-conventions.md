@@ -373,9 +373,64 @@ But because of uniqueness constraints within a namespace this is not always poss
 
 Many systems have their own built-in hierarchical constructs — path delimiters, subdomain delegation, namespace scoping. When a system already provides a hierarchy, map your naming segments onto it rather than encoding structure into flat compound names.
 
-> If the system provides a hierarchy, use it. Don't fight it.
+> **If the system provides a hierarchy, use it. Don't fight it.**
 
 The same logical segments (`{org}`, `{env}`, `{domain}`, `{service}`, `{key}`) apply regardless of the system — only the direction, delimiter, and order may differ. Mapping onto native hierarchies preserves the system's built-in ability to filter, delegate, and scope by prefix or level.
+
+## Why Use Native Hierarchies?
+
+Native hierarchies provide critical operational benefits that flat compound names cannot:
+
+1. **Prefix Filtering & Querying** - Systems like S3, SSM, and CloudWatch Logs support prefix-based queries, enabling you to fetch all resources for an org, domain, or service in a single operation
+2. **Permission Scoping** - IAM and other RBAC systems can grant access via path prefixes, enabling least-privilege access without listing every resource
+3. **Console Organization** - AWS console and CLI tools can drill-down and organize resources hierarchically, improving usability
+4. **Operational Boundaries** - Each prefix level becomes a meaningful operational boundary for automation, monitoring, and access control
+
+## Priority Decision: Native Hierarchy vs. Compound Naming
+
+**When naming a resource, follow this priority:**
+
+1. **Does the service support native hierarchy?** → Use the native hierarchy with its delimiter (`/`, `.`, `:`, etc.)
+2. **No native hierarchy?** → Use compound kebab-case with `--` segment delimiters and `-` word delimiters
+
+**Example - CloudWatch Metrics (Critical Pattern):**
+
+CloudWatch Metrics have THREE naming components, each serving a distinct purpose:
+
+| Component | What Goes Here | Delimiter | Example | Purpose |
+|-----------|---|-----------|---------|---------|
+| **Namespace** | `{org}/{domain}` ONLY | `/` | `acme/payments` | Organize metrics by business capability; enables filtering by domain |
+| **Dimensions** | `service={service}` + operational metadata | Key-value pairs | `service=checkout-api` (env via account, NOT dimension) | Enable cross-service queries; query "all services in payments with high CPU" |
+| **Metric Name** | Specific metric being measured | `-` for words | `request-count`, `error-rate`, `latency-p99` | Identify what is being measured |
+
+❌ WRONG: Encoding service in namespace → Namespace: `acme/payments/checkout-api`, Metric: `request-count`
+- Problem: Cannot query across services ("show me high CPU for ALL services in payments")
+- You'd need separate queries for each service
+
+✅ RIGHT: Service as a dimension → Namespace: `acme/payments`, Dimension: `service=checkout-api`, Metric: `request-count`
+- **Env handling (account-segregated, RECOMMENDED):** Each account's metrics are naturally isolated; no `env` dimension needed
+  - Prod account metrics: `acme/payments` namespace, `service=checkout-api` dimension
+  - Dev account metrics: `acme/payments` namespace, `service=checkout-api` dimension
+  - Permission boundary = AWS account; queries automatically scoped by account access
+- **Env handling (if NOT account-segregated):** Add `env` dimension for isolation
+  - Both environments in same account: `service=checkout-api,env=prod` vs `service=checkout-api,env=dev`
+  - But you must manage IAM permissions to prevent cross-env visibility
+- **Result:** Maximize query utility (cross-service queries) while maintaining permission boundaries
+
+## Services with Native Hierarchies
+
+| Service | Hierarchy Type | Delimiter | Benefit | Example |
+|---------|---|-----------|---------|---------|
+| S3 Object Keys | Path-based | `/` | Prefix filtering, object organization | `acme/payments/checkout-api/schema.sql` |
+| SSM Parameter Store | Path-based | `/` | GetParametersByPath queries, IAM path scoping | `/acme/payments/checkout-api/stripe-key` |
+| Secrets Manager | Path-based | `/` | Organized secrets, prefix filtering | `acme/payments/checkout-api/db-password` |
+| IAM Paths | Path-based | `/` | Permission scoping, least privilege | `/acme/payments/checkout-api/` |
+| ECR | Path-based | `/` | Repository organization | `acme/payments/checkout-api` |
+| CloudWatch Logs | Path-based | `/` | Log group filtering and organization | `/acme/payments/checkout-api/logs` |
+| CloudWatch Metrics | Namespace + Dimensions | `/` (namespace), key-value (dims) | Namespace: `acme/payments`; Dimension: `service=checkout-api`; enables cross-service queries | `acme/payments` (namespace) + `service=checkout-api` (dimension) |
+| OpenSearch | Index patterns | `/` | Time-series index organization | `acme/payments/checkout-api/transactions/2024-01-15` |
+| Route53 DNS | Subdomain | `.` | Zone delegation, DNS hierarchy | `checkout-api.payments.acme.com` |
+| Kafka | Topic dots | `.` | Topic organization and consumer scoping | `acme.payments.checkout-api.events` |
 
 ---
 

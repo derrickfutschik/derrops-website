@@ -40,7 +40,9 @@ Before using this cheatsheet, understand what each placeholder means:
 | **S3 Object Keys** | Hierarchy | `{org}/{domain}/{service}/{key}` | `/` | `acme/payments/checkout-api/schema.sql` |
 | **S3 Logs/Events** | With partition | `{org}/{domain}/{service}/{yyyy}/{mm}/{dd}/{hh}/{file}` | `/` | `acme/payments/checkout-api/2024/01/15/14/transactions-00001.json` |
 | **CloudWatch Logs** | Hierarchy | `/{org}/{domain}/{service}/{key}` | `/` | `/acme/payments/checkout-api/application-logs` |
-| **CloudWatch Metrics** | Flat kebab | `{org}--{domain}--{service}` | `--` / `-` | `acme--payments--checkout-api` |
+| **CloudWatch Metrics (Namespace)** | Hierarchy (org/domain only) | `{org}/{domain}` | `/` | `acme/payments` |
+| **CloudWatch Metric (Dimensions)** | Key-value pairs | `service={service}` (env via account, not dimension) | N/A | `service=checkout-api`, `service=order-processor` |
+| **CloudWatch Metric Names** | Flat kebab | `{key}-{metric-type}` | `-` | `request-count`, `error-rate`, `latency-p99` |
 | **ECS Cluster** | Flat kebab | `{org}--{domain}--{service}--{key}` | `--` / `-` | `acme--payments--checkout-api--cluster` |
 | **ECS Service** | Flat kebab | `{org}--{domain}--{service}` | `--` / `-` | `acme--payments--checkout-api` |
 | **ECS Task Definition** | Flat kebab | `{org}--{domain}--{service}` | `--` / `-` | `acme--payments--checkout-api` |
@@ -133,14 +135,31 @@ Before using this cheatsheet, understand what each placeholder means:
 
 ---
 
+## ⚠️ Critical: Native Hierarchy Detection
+
+**Many services support their own native hierarchical constructs.** Always check if a service has native hierarchy support BEFORE applying `--` segment delimiters. Using native hierarchies enables:
+- Prefix filtering and querying
+- Permission scoping via path-based policies
+- Better operational organization
+- Automatic drill-down capabilities in console
+
+**Example:** CloudWatch metrics require careful structure:
+- **Namespace** uses `/` for org/domain ONLY (e.g., `acme/payments`) ← **USE THIS FOR HIERARCHY**
+- **Dimensions** include `service={service}` (e.g., `service=checkout-api`); env via account boundary ← **USE THIS FOR CROSS-SERVICE QUERIES**
+- **Metric names** use `-` for words only (e.g., `request-count`, `error-rate`) ← Use this for specifics
+
+Why? This enables meaningful queries like "all services in payments domain with high CPU" by filtering the service dimension, not namespaces. Each account's metrics are naturally isolated, maintaining permission boundaries while maximizing query utility!
+
+---
+
 ## Delimiter Decision Matrix
 
 | Use Case | Default Delimiter | Notes | When to Override | Services |
 |----------|-------------------|-------|------------------|----------|
-| **Segment separator** (org↔domain↔service↔key) | `--` (double hyphen) | Separates major naming segments; most readable | When service has native hierarchy | All flat resource names |
+| **Segment separator** (org↔domain↔service↔key) | `--` (double hyphen) | Separates major naming segments; most readable | **ALWAYS check for native hierarchy first** | All flat resource names |
 | **Word within segment** | `-` (hyphen) | Words/parts within a single segment | Never—always use `-` for words | All resource names |
-| **Path hierarchy (native)** | `/` (slash) | Native hierarchical support—use instead of `--` | Use `/` instead of `--` | S3 keys, SSM Parameters, Secrets, IAM paths, ECR, CloudWatch Logs |
-| **DNS hierarchy (native)** | `.` (dot) | Native DNS subdomain separation—use instead of `--` | Use `.` instead of `--` | Route53, DNS records, CloudFront aliases, Kafka topics |
+| **Path hierarchy (native)** | `/` (slash) | Native hierarchical support—use instead of `--` | **Use `/` instead of `--` when available** | S3 keys, SSM Parameters, Secrets, IAM paths, ECR, CloudWatch Logs, CloudWatch Metrics namespaces |
+| **DNS hierarchy (native)** | `.` (dot) | Native DNS subdomain separation—use instead of `--` | **Use `.` instead of `--` when available** | Route53, DNS records, CloudFront aliases, Kafka topics |
 | **Image tag/version (native)** | `:` (colon) | Native registry delimiter for versioning | Use `:` after image name | ECR, Docker registries |
 | **Database internal names** | `_` (underscore) | DB-friendly; only for internal schema names, NOT identifiers | Use `_` instead of `-` for DB/schema names only | RDS database names, Glue databases |
 
@@ -161,21 +180,24 @@ Before using this cheatsheet, understand what each placeholder means:
 
 ## Native Hierarchy Support
 
-| Service | Native Delimiter | Use It? | Alternative |
-|---------|------------------|--------|-------------|
-| S3 Object Keys | `/` (slash) | ✅ YES | N/A |
-| SSM Parameter Store | `/` (slash) | ✅ YES | N/A |
-| Secrets Manager | `/` (slash) | ✅ YES | N/A |
-| IAM Paths | `/` (slash) | ✅ YES | N/A |
-| ECR Repositories | `/` (slash) | ✅ YES | N/A |
-| OpenSearch Indices | `/` (slash) | ✅ YES | N/A |
-| Route53 DNS | `.` (dot) | ✅ YES | N/A |
-| CloudWatch Logs | `/` (slash) | ✅ YES | N/A |
-| Kafka Topics | `.` (dot) | ✅ YES | N/A |
-| DynamoDB Tables | `-` (kebab) | ❌ NO | Use `--` for segments |
-| RDS Instances | `-` (kebab) | ❌ NO | Use `--` for segments |
-| Lambda Functions | `-` (kebab) | ❌ NO | Use `--` for segments |
-| ECS/EC2 Resources | `-` (kebab) | ❌ NO | Use `--` for segments |
+**PRIORITY: Always use native hierarchies when available.** They provide operational benefits flat names cannot.
+
+| Service | Native Support | Delimiter | Example | Benefit |
+|---------|---|----------|---------|---------|
+| **S3 Object Keys** | ✅ YES | `/` | `acme/payments/checkout-api/schema.sql` | Prefix filtering, drill-down in console |
+| **SSM Parameter Store** | ✅ YES | `/` | `/acme/payments/checkout-api/stripe-key` | GetParametersByPath queries, IAM scoping |
+| **Secrets Manager** | ✅ YES | `/` | `acme/payments/checkout-api/db-password` | Prefix filtering, organized in console |
+| **IAM Paths** | ✅ YES | `/` | `/acme/payments/checkout-api/` | Path-based IAM policies, permission scoping |
+| **ECR Repositories** | ✅ YES | `/` | `acme/payments/checkout-api` | Namespace organization in console |
+| **CloudWatch Logs** | ✅ YES | `/` | `/acme/payments/checkout-api/logs` | Log group filtering and organization |
+| **CloudWatch Metrics (Namespace)** | ✅ YES | `/` (org/domain only) | `acme/payments` | Namespace filtering; `service` as dimension enables cross-service queries |
+| **OpenSearch Indices** | ✅ YES | `/` | `acme/payments/checkout-api/transactions/2024-01-15` | Index pattern matching, time-series organization |
+| **Route53 DNS** | ✅ YES | `.` | `checkout-api.payments.acme.com` | DNS delegation, zone scoping |
+| **Kafka Topics** | ✅ YES | `.` | `acme.payments.checkout-api.events` | Topic organization, consumer group scoping |
+| **DynamoDB Tables** | ❌ NO | `-` | Use `{org}--{domain}--{service}--{key}` | No hierarchy support; use `--` delimiters |
+| **RDS Instances** | ❌ NO | `-` | Use `{org}--{domain}--{service}--{key}` | No hierarchy support; use `--` delimiters |
+| **Lambda Functions** | ❌ NO | `-` | Use `{org}--{domain}--{service}--{key}` | No hierarchy support; use `--` delimiters |
+| **ECS/EC2 Resources** | ❌ NO | `-` | Use `{org}--{domain}--{service}--{key}` | No hierarchy support; use `--` delimiters |
 
 ---
 
@@ -240,7 +262,12 @@ EventBridge Rule: acme--payments--checkout-api--process-webhook-rule
 ### Observability Layer
 ```
 CloudWatch Logs: /acme/payments/checkout-api/application-logs
-CloudWatch Metrics: acme--payments--checkout-api
+CloudWatch Metrics:
+  Namespace: acme/payments (org/domain only)
+  Dimensions: service=checkout-api (env via account boundary)
+  Metric Name: request-count, error-rate, latency-p99
+  Example Query: "All high-CPU services in payments" → Query namespace acme/payments, filter by service dimension
+  Permission Boundary: Account segregation; no env dimension needed
 X-Ray Rule: acme--payments--checkout-api--sampling-rule
 Config Rule: acme--payments--checkout-api--encryption-enabled-rule
 ```
