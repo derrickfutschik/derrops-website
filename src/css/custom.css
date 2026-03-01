@@ -16,6 +16,9 @@
   --ifm-color-primary-lightest: #3d628d;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Increase content width */
+  --ifm-container-max-width: 100%;
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
@@ -28,4 +31,63 @@
   --ifm-color-primary-lighter: #608ab5;
   --ifm-color-primary-lightest: #7a9ec4;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Expand main content area to use more page width */
+.container {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+}
+
+.main-wrapper {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.docMainContainerDiv {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Increase blog and doc content widths */
+article {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.markdown {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Expand tables to use available width */
+table {
+  width: 100% !important;
+  overflow-x: auto;
+}
+
+.table-wrapper {
+  width: 100% !important;
+  overflow-x: auto;
+}
+
+/* Blog post layout */
+.blog-wrapper {
+  max-width: 100% !important;
+}
+
+.blog-title {
+  width: 100% !important;
+}
+
+/* Doc item layout */
+.docItem_node_modules-\@docusaurus-theme-classic-lib-theme-DocItem-Layout--docItemContainer {
+  max-width: 100% !important;
+}
+
+/* Blog post metadata */
+.blog-post {
+  max-width: 100% !important;
 }
