@@ -5,7 +5,7 @@ title: Derrops Guide to Config
 date: 2026-02-24
 authors: [derrops]
 tags: [typescript, devops, aws, config]
-draft: true
+draft: false
 ---
 
 

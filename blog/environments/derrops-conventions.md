@@ -4,7 +4,7 @@ slug: derrops-conventions
 title: Derrops Guide to Naming Conventions and Segregation
 date: 2026-02-26
 authors: [derrops]
-tags: [typescript, devops, aws]
+tags: [devops, aws]
 draft: false
 ---
 

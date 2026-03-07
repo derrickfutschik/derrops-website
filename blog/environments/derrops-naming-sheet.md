@@ -1,3 +1,13 @@
+---
+slug: derrops-naming-sheet
+title: Naming Cheatsheet for best Pracices
+date: 2026-02-26
+authors: [derrops]
+tags: [devops, aws]
+draft: false
+---
+
+
 # AWS Resource Naming Cheatsheet
 
 Quick reference guide for naming AWS resources following the Derrops conventions. All examples assume **account-segregated environments** (preferred approach).
